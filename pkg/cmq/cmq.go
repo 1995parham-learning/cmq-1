@@ -50,7 +50,7 @@ func (mmq MockMessageQueue[T]) Publish(topic string, message T) error {
 		select {
 		case channel <- message:
 		default:
-			// just like nats we are ignoring consumers that can not consume as fast as
+			// just like NATS we are ignoring consumers that can not consume as fast as
 			// producer.
 		}
 	}
@@ -58,6 +58,9 @@ func (mmq MockMessageQueue[T]) Publish(topic string, message T) error {
 	return nil
 }
 
+// Register a subscribe group on a topic. You need to register subscriber group before using it.
+// Subscriber groups start getting messages just after the registeration and only stores "size"
+// number of them before dropping them out.
 func (mmq MockMessageQueue[T]) Register(subscriber string, topic string, size int) error {
 	if _, ok := mmq.queues[topic]; !ok {
 		mmq.queues[topic] = make(map[string]chan T)
@@ -72,6 +75,9 @@ func (mmq MockMessageQueue[T]) Register(subscriber string, topic string, size in
 	return nil
 }
 
+// Subscribe using subscriber group on a given topic. In subscriber group, each subscriber
+// receives a message at most once. You need to close the subscribe using the context to
+// prevent go routine leak.
 func (mmq MockMessageQueue[T]) Subscribe(subscriber string, topic string) (SubscriberContext[T], error) {
 	ch := make(chan T)
 
