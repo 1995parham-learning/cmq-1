@@ -35,8 +35,11 @@ func TestFullSubscribers(t *testing.T) {
 	if subErr.Topic != "numbers" {
 		t.Fatalf("the name of topic is %s instead of numbers", subErr.Topic)
 	}
-	if subErr.Subscribers[0] != "s1" {
-		t.Fatalf("the name of subscriber is %s instead of s1", subErr.Subscribers[0])
+	if len(subErr.Subscribers[0]) != 2 {
+		t.Fatalf("the number of subscribers is %d instead of 2", len(subErr.Subscribers))
+	}
+	if subErr.Subscribers[0] != "s1" && subErr.Subscribers[0] != "s2" {
+		t.Fatalf("the name of subscriber is %s instead of s1 or s2", subErr.Subscribers[0])
 	}
 }
 
