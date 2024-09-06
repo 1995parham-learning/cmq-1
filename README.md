@@ -1,4 +1,5 @@
-<h1 align="center">In-memory central messaging queue for dummies</h1>
+<h1 align="center">Central Messaging Queue Minus One</h1>
+<h6 align="center">In-memory central messaging queue for dummies</h6>
 
 ## Introduction
 
