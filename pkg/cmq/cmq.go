@@ -2,6 +2,7 @@ package cmq
 
 import (
 	"errors"
+	"fmt"
 )
 
 var (
@@ -9,6 +10,19 @@ var (
 	ErrTopicNotFound       = errors.New("topic doesn't exist")
 	ErrSubscriberNotFound  = errors.New("subscriber doesn't exist")
 )
+
+type SubscriberFullError struct {
+	Subscriber string
+	Topic      string
+}
+
+func (err SubscriberFullError) Error() string {
+	return fmt.Sprintf(
+		"cannot publish into subscriber named %s of topic %s because its channel is already full",
+		err.Subscriber,
+		err.Topic,
+	)
+}
 
 type SubscriberContext[T any] struct {
 	ch   chan T
@@ -46,16 +60,19 @@ func (mmq MockMessageQueue[T]) Publish(topic string, message T) error {
 		mmq.queues[topic] = make(map[string]chan T)
 	}
 
-	for _, channel := range mmq.queues[topic] {
+	var err error
+
+	for name, channel := range mmq.queues[topic] {
 		select {
 		case channel <- message:
 		default:
 			// just like NATS we are ignoring consumers that can not consume as fast as
 			// producer.
+			err = errors.Join(err, SubscriberFullError{name, topic})
 		}
 	}
 
-	return nil
+	return err
 }
 
 // Register a subscribe group on a topic. You need to register subscriber group before using it.
