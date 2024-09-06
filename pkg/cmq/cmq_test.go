@@ -8,6 +8,38 @@ import (
 	"github.com/1995parham-learning/cmq-1/pkg/cmq"
 )
 
+func TestFullSubscribers(t *testing.T) {
+	mmq := cmq.NewMockMessageQueue[int]()
+
+	// create a subscribe groip on "numbers" topic which is named "s1"
+	if err := mmq.Register("s1", "numbers", 1); err != nil {
+		t.Fatalf("failed to create subscriber group named s1 on numbers topic %s", err)
+	}
+	if err := mmq.Register("s2", "numbers", 1); err != nil {
+		t.Fatalf("failed to create subscriber group named s1 on numbers topic %s", err)
+	}
+
+	if err := mmq.Publish("numbers", 78); err != nil {
+		t.Fatalf("failed to publish on numbers topic %s", err)
+	}
+
+	err := mmq.Publish("numbers", 78)
+	if err == nil {
+		t.Fatalf("publish on full subscriber should fail")
+	}
+
+	var subErr cmq.SubscriberFullError
+	if !errors.As(err, &subErr) {
+		t.Fatalf("publish on full subscriber should fail with subscribe error but failed with %s", err)
+	}
+	if subErr.Topic != "numbers" {
+		t.Fatalf("the name of topic is %s instead of numbers", subErr.Topic)
+	}
+	if subErr.Subscribers[0] != "s1" {
+		t.Fatalf("the name of subscriber is %s instead of s1", subErr.Subscribers[0])
+	}
+}
+
 func TestFullSubscriber(t *testing.T) {
 	mmq := cmq.NewMockMessageQueue[int]()
 
@@ -32,8 +64,8 @@ func TestFullSubscriber(t *testing.T) {
 	if subErr.Topic != "numbers" {
 		t.Fatalf("the name of topic is %s instead of numbers", subErr.Topic)
 	}
-	if subErr.Subscriber != "s1" {
-		t.Fatalf("the name of subscriber is %s instead of s1", subErr.Subscriber)
+	if subErr.Subscribers[0] != "s1" {
+		t.Fatalf("the name of subscriber is %s instead of s1", subErr.Subscribers[0])
 	}
 }
 

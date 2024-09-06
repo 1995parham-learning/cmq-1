@@ -12,14 +12,14 @@ var (
 )
 
 type SubscriberFullError struct {
-	Subscriber string
-	Topic      string
+	Subscribers []string
+	Topic       string
 }
 
 func (err SubscriberFullError) Error() string {
 	return fmt.Sprintf(
 		"cannot publish into subscriber named %s of topic %s because its channel is already full",
-		err.Subscriber,
+		err.Subscribers,
 		err.Topic,
 	)
 }
@@ -60,7 +60,7 @@ func (mmq MockMessageQueue[T]) Publish(topic string, message T) error {
 		mmq.queues[topic] = make(map[string]chan T)
 	}
 
-	var err error
+	fullSubscribers := make([]string, 0)
 
 	for name, channel := range mmq.queues[topic] {
 		select {
@@ -68,11 +68,18 @@ func (mmq MockMessageQueue[T]) Publish(topic string, message T) error {
 		default:
 			// just like NATS we are ignoring consumers that can not consume as fast as
 			// producer.
-			err = errors.Join(err, SubscriberFullError{name, topic})
+			fullSubscribers = append(fullSubscribers, name)
 		}
 	}
 
-	return err
+	if len(fullSubscribers) == 0 {
+		return nil
+	} else {
+		return SubscriberFullError{
+			Subscribers: fullSubscribers,
+			Topic:       topic,
+		}
+	}
 }
 
 // Register a subscribe group on a topic. You need to register subscriber group before using it.
