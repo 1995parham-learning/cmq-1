@@ -8,7 +8,7 @@ and for sure it cannot. It doesn't have any dependencies except Go standard libr
 ```go
 mmq := cmq.NewMockMessageQueue[int]()
 
-# register two different subscribing groups.
+// register two different subscribing groups.
 mmq.Register("s1", "numbers", 10)
 mmq.Register("s2", "numbers", 10)
 ```
