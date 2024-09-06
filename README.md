@@ -5,6 +5,7 @@
   <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/1995parham-learning/cmq-1/ci.yaml?style=for-the-badge&logo=github">
   <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/1995parham-learning/cmq-1?logo=github&style=for-the-badge">
   <img alt="GitHub go.mod Go version (subdirectory of monorepo)" src="https://img.shields.io/github/go-mod/go-version/1995parham-learning/cmq-1?style=for-the-badge&logo=go">
+  <img alt="Codecov" src="https://img.shields.io/codecov/c/github/1995parham-learning/cmq-1?logo=codecov&style=for-the-badge">
 </p>
 
 ## Introduction
