@@ -22,8 +22,8 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	mmq.Register("s1", "numbers", 10)
-	mmq.Register("s2", "numbers", 10)
+	_ = mmq.Register("s1", "numbers", 10)
+	_ = mmq.Register("s2", "numbers", 10)
 
 	var s1 sync.Map
 	var s2 sync.Map
@@ -69,9 +69,9 @@ func main() {
 		wg.Done()
 	}()
 
-	mmq.Publish("numbers", 10)
-	mmq.Publish("numbers", 20)
-	mmq.Publish("numbers", 30)
+	_ = mmq.Publish("numbers", 10)
+	_ = mmq.Publish("numbers", 20)
+	_ = mmq.Publish("numbers", 30)
 
 	wg.Wait()
 }
