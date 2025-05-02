@@ -8,21 +8,26 @@ import (
 )
 
 type Consumer[T any] struct {
-	stream *stream.Stream[T]
-	offset int
+	stream   *stream.Stream[T]
+	offset   int
 	messages []T
-	close chan struct{}
+	close    chan struct{}
 
 	lock sync.Mutex
 }
 
 func New[T any](stream *stream.Stream[T]) *Consumer[T] {
 	return &Consumer[T]{
-		stream: stream,
-		offset: 0,
+		stream:   stream,
+		offset:   0,
 		messages: nil,
-		close: make(chan struct{}),
-		lock: sync.Mutex{},
+		close:    make(chan struct{}),
+		lock:     sync.Mutex{},
+	}
+}
+
+func (c *Consumer[T]) Wait() {
+	for len(c.messages) == 0 {
 	}
 }
 

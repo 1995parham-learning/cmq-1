@@ -1,113 +1,65 @@
 package cmq_test
 
 import (
-	"errors"
-	"sync"
+	"context"
 	"testing"
+	"time"
 
 	"github.com/1995parham-learning/cmq-1/pkg/cmq"
+	"github.com/1995parham-learning/cmq-1/pkg/stream"
+	"github.com/stretchr/testify/require"
 )
 
-func TestFullSubscribers(t *testing.T) {
-	mmq := cmq.NewMockMessageQueue[int]()
+func TestSubscriber(t *testing.T) {
+	require := require.New(t)
 
-	// create a subscribe groip on "numbers" topic which is named "s1"
-	if err := mmq.Register("s1", "numbers", 1); err != nil {
-		t.Fatalf("failed to create subscriber group named s1 on numbers topic %s", err)
-	}
-	if err := mmq.Register("s2", "numbers", 1); err != nil {
-		t.Fatalf("failed to create subscriber group named s1 on numbers topic %s", err)
-	}
+	mmq := cmq.NewMockMessageQueue[string]()
 
-	if err := mmq.Publish("numbers", 78); err != nil {
-		t.Fatalf("failed to publish on numbers topic %s", err)
-	}
+	sub := mmq.Subscribe("hello")
 
-	err := mmq.Publish("numbers", 78)
-	if err == nil {
-		t.Fatalf("publish on full subscriber should fail")
-	}
-
-	var subErr cmq.SlowSubscribersError
-	if !errors.As(err, &subErr) {
-		t.Fatalf("publish on full subscriber should fail with subscribe error but failed with %s", err)
-	}
-	if subErr.Topic != "numbers" {
-		t.Fatalf("the name of topic is %s instead of numbers", subErr.Topic)
-	}
-	if len(subErr.Subscribers[0]) != 2 {
-		t.Fatalf("the number of subscribers is %d instead of 2", len(subErr.Subscribers))
-	}
-	if subErr.Subscribers[0] != "s1" && subErr.Subscribers[0] != "s2" {
-		t.Fatalf("the name of subscriber is %s instead of s1 or s2", subErr.Subscribers[0])
-	}
-}
-
-func TestFullSubscriber(t *testing.T) {
-	mmq := cmq.NewMockMessageQueue[int]()
-
-	// create a subscribe groip on "numbers" topic which is named "s1"
-	if err := mmq.Register("s1", "numbers", 1); err != nil {
-		t.Fatalf("failed to create subscriber group named s1 on numbers topic %s", err)
-	}
-
-	if err := mmq.Publish("numbers", 78); err != nil {
-		t.Fatalf("failed to publish on numbers topic %s", err)
-	}
-
-	err := mmq.Publish("numbers", 78)
-	if err == nil {
-		t.Fatalf("publish on full subscriber should fail")
-	}
-
-	var subErr cmq.SlowSubscribersError
-	if !errors.As(err, &subErr) {
-		t.Fatalf("publish on full subscriber should fail with subscribe error but failed with %s", err)
-	}
-	if subErr.Topic != "numbers" {
-		t.Fatalf("the name of topic is %s instead of numbers", subErr.Topic)
-	}
-	if subErr.Subscribers[0] != "s1" {
-		t.Fatalf("the name of subscriber is %s instead of s1", subErr.Subscribers[0])
-	}
-}
-
-func TestPublishAndSubscribe(t *testing.T) {
-	mmq := cmq.NewMockMessageQueue[int]()
-
-	// create a subscribe groip on "numbers" topic which is named "s1"
-	if err := mmq.Register("s1", "numbers", 10); err != nil {
-		t.Fatalf("failed to create subscriber group named s1 on numbers topic %s", err)
-	}
-
-	sub, err := mmq.Subscribe("s1", "numbers")
-	if err != nil {
-		t.Fatalf("failed to subscribe on group named s1 and numbers topic %s", err)
-	}
-
-	var wg sync.WaitGroup
-
-	wg.Add(1)
 	go func() {
-		i := <-sub.Channel()
-		if i != 78 {
-			t.Errorf("read %d from subscribe instead of 78", i)
-			t.Fail()
-		}
-		sub.Close()
-		wg.Done()
+		v, err := sub.Fetch(context.Background())
+		require.NoError(err)
+		require.Equal(v, "Hello World")
 	}()
 
-	// subscriber has 10 empty place, so we can insert
-	// 10 numbers without any error.
-	if err := mmq.Publish("numbers", 78); err != nil {
-		t.Fatalf("failed to publish on numbers topic %s", err)
-	}
-	for i := range 9 {
-		if err := mmq.Publish("numbers", i); err != nil {
-			t.Fatalf("failed to publish on numbers topic %s", err)
-		}
-	}
+	mmq.Publish("hello", "Hello World")
+}
 
-	wg.Wait()
+func TestSubscriberTimeout(t *testing.T) {
+	require := require.New(t)
+
+	mmq := cmq.NewMockMessageQueue[string]()
+
+	sub := mmq.Subscribe("hello")
+
+	ctx := context.Background()
+	ctx, done := context.WithTimeout(ctx, time.Second)
+	defer done()
+
+	v, err := sub.Fetch(ctx)
+	require.Error(err)
+	require.Equal(v, "")
+}
+
+func TestConsumer(t *testing.T) {
+	require := require.New(t)
+
+	mmq := cmq.NewMockMessageQueue[int]()
+
+	require.NoError(mmq.Stream(stream.New[int]("hello", []string{"hello"})))
+
+	mmq.Publish("hello", 1378)
+
+	con, err := mmq.Consume("hello")
+	require.NoError(err)
+
+	con.Start()
+	defer con.Stop()
+
+	con.Wait()
+
+	v, ok := con.Fetch()
+	require.True(ok)
+	require.Equal(v, 1378)
 }
