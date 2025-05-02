@@ -14,7 +14,6 @@ type Stream[T any] struct {
 	Name     string
 	topics   []string
 	messages []T
-	seqNum   int
 	lock     sync.RWMutex
 }
 
