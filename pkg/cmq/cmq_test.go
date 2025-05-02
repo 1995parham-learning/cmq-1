@@ -28,7 +28,7 @@ func TestFullSubscribers(t *testing.T) {
 		t.Fatalf("publish on full subscriber should fail")
 	}
 
-	var subErr cmq.SubscriberFullError
+	var subErr cmq.SlowSubscribersError
 	if !errors.As(err, &subErr) {
 		t.Fatalf("publish on full subscriber should fail with subscribe error but failed with %s", err)
 	}
@@ -60,7 +60,7 @@ func TestFullSubscriber(t *testing.T) {
 		t.Fatalf("publish on full subscriber should fail")
 	}
 
-	var subErr cmq.SubscriberFullError
+	var subErr cmq.SlowSubscribersError
 	if !errors.As(err, &subErr) {
 		t.Fatalf("publish on full subscriber should fail with subscribe error but failed with %s", err)
 	}
