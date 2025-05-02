@@ -8,17 +8,16 @@ import (
 	"github.com/1995parham-learning/cmq-1/pkg/subscriber"
 )
 
+var (
+	ErrDuplicateStream = errors.New("stream with a same name already exists")
+)
+
 type CMQ[T any] interface {
 	Publish(topic string, message T)
 	Subscribe(topic string) subscriber.Subscriber[T]
 	Consume(stream string, topics []string)
+	Stream(stream *stream.Stream[T])
 }
-
-var (
-	ErrDuplicateSubscriber = errors.New("subscriber on the topic with a same name exists")
-	ErrTopicNotFound       = errors.New("topic doesn't exist")
-	ErrSubscriberNotFound  = errors.New("subscriber doesn't exist")
-)
 
 type MockCMQ[T any] struct {
 	subscribers map[string][]chan<- T
@@ -31,6 +30,16 @@ func NewMockMessageQueue[T any]() *MockCMQ[T] {
 	return &MockCMQ[T]{
 		subscribers: make(map[string][]chan<- T),
 	}
+}
+
+func (mmq *MockCMQ[T]) Stream(stream *stream.Stream[T]) {
+	mmq.lock.Lock()
+	defer mmq.lock.Unlock()
+
+	mmq.streams = append(mmq.streams, stream)
+}
+
+func (mmq *MockCMQ[T]) Consume(name string, topics []string) {
 }
 
 func (mmq *MockCMQ[T]) Publish(topic string, message T) {
