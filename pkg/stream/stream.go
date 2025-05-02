@@ -9,14 +9,20 @@ type Stream[T any] struct {
 	topics   []string
 	messages []T
 	seqNum   int
-	lock     sync.Mutex
+	lock     sync.RWMutex
 }
 
 func (s *Stream[T]) Insert(message T) {
 	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	s.messages = append(s.messages, message)
 	s.seqNum += 1
+}
 
-	defer s.lock.Unlock()
+func (s *Stream[T]) Fetch(index int) T {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.messages[index]
 }
