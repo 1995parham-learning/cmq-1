@@ -1,6 +1,7 @@
 package consumer_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -12,7 +13,8 @@ import (
 func TestConsumerFetch(t *testing.T) {
 	require := require.New(t)
 
-	str := stream.New[string]("rides", []string{"ride.accepted"})
+	str, err := stream.New[string]("rides", []string{"ride.accepted"})
+	require.NoError(err)
 	con := consumer.New(str)
 
 	str.Insert("ride 73 is accepted by driver 78")
@@ -26,7 +28,10 @@ func TestConsumerFetch(t *testing.T) {
 	con.Start()
 	defer con.Stop()
 
-	time.Sleep(2 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	require.NoError(con.Wait(ctx))
 
 	{
 		v, ok := con.Fetch()

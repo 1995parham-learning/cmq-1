@@ -1,3 +1,7 @@
+// Package cmq provides an in-memory mock message queue implementation for testing.
+// It supports both at-most-once (subscriber) and at-least-once (consumer) message
+// delivery semantics, making it suitable for testing applications that depend on
+// message queues without requiring external dependencies.
 package cmq
 
 import (
@@ -10,17 +14,21 @@ import (
 )
 
 var (
-	ErrDuplicateStream = errors.New("stream with a same name already exists")
-	ErrStreamNotFound = errors.New("stream with given name does not exist")
+	ErrDuplicateStream = errors.New("stream with the same name already exists")
+	ErrStreamNotFound  = errors.New("stream with given name does not exist")
 )
 
+// CMQ is the interface for a mock message queue supporting both
+// at-most-once (subscriber) and at-least-once (consumer) semantics.
 type CMQ[T any] interface {
 	Publish(topic string, message T)
 	Subscribe(topic string) subscriber.Subscriber[T]
-	Consume(stream string) (consumer.Consumer[T], error)
-	Stream(stream *stream.Stream[T])
+	Consume(stream string) (*consumer.Consumer[T], error)
+	Stream(stream *stream.Stream[T]) error
 }
 
+// MockCMQ is an in-memory implementation of the CMQ interface.
+// It provides thread-safe message publishing with topic-based routing.
 type MockCMQ[T any] struct {
 	subscribers map[string][]chan<- T
 	streams     map[string]*stream.Stream[T]
@@ -28,13 +36,16 @@ type MockCMQ[T any] struct {
 	lock sync.RWMutex
 }
 
+// NewMockMessageQueue creates a new in-memory message queue.
 func NewMockMessageQueue[T any]() *MockCMQ[T] {
 	return &MockCMQ[T]{
 		subscribers: make(map[string][]chan<- T),
-		streams: make(map[string]*stream.Stream[T]),
+		streams:     make(map[string]*stream.Stream[T]),
 	}
 }
 
+// Stream registers a stream with the message queue.
+// Returns ErrDuplicateStream if a stream with the same name already exists.
 func (mmq *MockCMQ[T]) Stream(stream *stream.Stream[T]) error {
 	mmq.lock.Lock()
 	defer mmq.lock.Unlock()
@@ -48,17 +59,22 @@ func (mmq *MockCMQ[T]) Stream(stream *stream.Stream[T]) error {
 	return nil
 }
 
-// Define new consumer with at least once semantic.
-func (mmq *MockCMQ[T]) Consume(stream string) (*consumer.Consumer[T], error){
+// Consume creates a new consumer with at-least-once semantic for the given stream.
+// Returns ErrStreamNotFound if the stream doesn't exist.
+func (mmq *MockCMQ[T]) Consume(stream string) (*consumer.Consumer[T], error) {
+	mmq.lock.RLock()
 	str, ok := mmq.streams[stream]
+	mmq.lock.RUnlock()
+
 	if !ok {
 		return nil, ErrStreamNotFound
 	}
 
-
 	return consumer.New(str), nil
 }
 
+// Publish sends a message to all subscribers on the given topic and stores it in matching streams.
+// Slow subscribers are dropped (at-most-once semantic), but messages are always persisted to streams.
 func (mmq *MockCMQ[T]) Publish(topic string, message T) {
 	mmq.lock.RLock()
 	defer mmq.lock.RUnlock()
@@ -67,7 +83,7 @@ func (mmq *MockCMQ[T]) Publish(topic string, message T) {
 		select {
 		case channel <- message:
 		default:
-			// just like NATS we are ignoring subscribers that can not consume as fast as
+			// just like NATS we are ignoring subscribers that cannot consume as fast as
 			// producer, but for consumers we have stream in which we store messages.
 		}
 	}
@@ -80,8 +96,8 @@ func (mmq *MockCMQ[T]) Publish(topic string, message T) {
 	}
 }
 
-// Subscribe with at-most once semantic on a given topic. In subscriber group, each subscriber
-// receives a message at most once.
+// Subscribe creates a new subscriber with at-most-once semantic on the given topic.
+// Messages may be dropped if the subscriber cannot keep up with the producer.
 func (mmq *MockCMQ[T]) Subscribe(topic string) subscriber.Subscriber[T] {
 	mmq.lock.Lock()
 	defer mmq.lock.Unlock()
